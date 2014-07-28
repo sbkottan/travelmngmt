@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<root-container name="sbkottan_TravelProcess" width="717" height="513">
+  <node name="start" x="240" y="13" width="140" height="40">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="extractRequest" x="241" y="67" width="140" height="40">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="HotelService" x="522" y="166" width="132" height="36">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="AirService" x="42" y="180" width="132" height="36">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="PaymentService" x="38" y="344" width="132" height="36">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="fork1" x="186" y="125" width="252" height="40">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="join1" x="181" y="265" width="252" height="24">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="ticketsBooked?" x="464" y="378" width="132" height="36">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="paymentSuccessful?" x="26" y="416" width="132" height="36">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="printResults" x="238" y="420" width="132" height="36">
+    <edge>
+      <label x="5" y="-10"/>
+    </edge>
+  </node>
+  <node name="end" x="380" y="476" width="132" height="36"/>
+  <deployment serverName="localhost" serverPort="8080" serverDeployer="/jbpm-console/upload">
+    <classesAndResources/>
+    <filesAndFolders>
+      <element value="/unityID_soc_project4/esbcontent/process/gpd.xml"/>
+      <element value="/unityID_soc_project4/esbcontent/process/processdefinition.xml"/>
+      <element value="/unityID_soc_project4/esbcontent/process/processimage.jpg"/>
+    </filesAndFolders>
+  </deployment>
+</root-container>

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  
+<process-definition name="sbkottan_TravelProcess">
+   <start-state name="start">
+      <transition to="extractRequest" />
+   </start-state>
+	
+	<!-- Service created to extract the variables. The requestExtractor.groovy will aid in extracting values from the JMS message-->
+   <!-- This is the starting ESB process and will extract all values and map the input/output variables -->
+   <node name="extractRequest">
+      <action class="org.jboss.soa.esb.services.jbpm.actionhandlers.EsbActionHandler">
+         <esbCategoryName>Travel_Service</esbCategoryName>
+         <esbServiceName>ExtractRequestService</esbServiceName>
+         <bpmToEsbVars>
+         	<mapping bpm="orginalMessage" esb="BODY_CONTENT" />
+         </bpmToEsbVars>
+         <esbToBpmVars>
+         	<mapping esb="bookAirTickets" bpm="bookAirTickets" />
+         	<mapping esb="reserveHotel" bpm="reserveHotel" />
+         	<mapping esb="airlines" bpm="airlines" />
+         	<mapping esb="customerName" bpm="customerName" />
+         	<mapping esb="cancelAirTickets" bpm="cancelAirTickets" />
+         	<mapping esb="cancelHotelReservation" bpm="cancelHotelReservation" />
+         	<mapping esb="airBookingSucceed" bpm="airBookingSucceed" />
+         	<mapping esb="hotelReservationSucceed" bpm="hotelReservationSucceed" />
+         	<mapping esb="makePayment" bpm="makePayment" />
+         	<mapping esb="paySucceed" bpm="paySucceed" />
+         	<mapping bpm="hotelReservationRef" esb="hotelReservationRef" default="100"/>
+         	<mapping bpm="airBookingRefNum" esb="airBookingRefNum" default="100"/>       	
+         </esbToBpmVars>
+      </action>
+		<transition to="fork1"></transition>
+   </node>
+	
+	<!-- Hotel Service to make hotel reservations -->
+	<node name="HotelService">
+		<action class="org.jboss.soa.esb.services.jbpm.actionhandlers.EsbActionHandler">
+			<esbCategoryName>Travel_Service</esbCategoryName>
+			<esbServiceName>HotelService</esbServiceName>
+			<bpmToEsbVars>	         	
+	         	<mapping esb="reserveHotel" bpm="reserveHotel" />	         	
+	         	<mapping esb="customerName" bpm="customerName" />	         	
+	         	<mapping esb="cancelHotelReservation" bpm="cancelHotelReservation" />	         	
+	         	<mapping esb="hotelReservationSucceed" bpm="hotelReservationSucceed" />
+	         	<mapping esb="makePayment" bpm="makePayment" />
+	         	<mapping bpm="hotelReservationRef" esb="hotelReservationRef"/>	         		         	
+			</bpmToEsbVars>
+			<esbToBpmVars>
+         	<mapping bpm="hotelReserved" esb="hotelReserved" />
+         	<mapping bpm="hotelReservationRefunded" esb="hotelReservationRefunded" default="false"/>
+         	<mapping bpm="hotelReservationRef" esb="hotelReservationRef" />
+         	<mapping bpm="cancelHotelReservation" esb="cancelHotelReservation" />
+         	</esbToBpmVars>
+		</action>		
+		<transition to="join1"></transition>
+	</node>
+	
+	<!-- Air Service to make air tickets reservation -->
+	<node name="AirService">
+		<action class="org.jboss.soa.esb.services.jbpm.actionhandlers.EsbActionHandler">
+			<esbCategoryName>Travel_Service</esbCategoryName>
+			<esbServiceName>AirService</esbServiceName>
+			<bpmToEsbVars>
+	         <mapping esb="bookAirTickets" bpm="bookAirTickets" />         	
+         	<mapping esb="airlines" bpm="airlines" />
+         	<mapping esb="customerName" bpm="customerName" />
+         	<mapping esb="cancelAirTickets" bpm="cancelAirTickets" />         	
+         	<mapping esb="airBookingSucceed" bpm="airBookingSucceed" />
+         	<mapping esb="makePayment" bpm="makePayment" />
+         	<mapping esb="airBookingRefNum" bpm="airBookingRefNum" />         	
+			</bpmToEsbVars>
+			<esbToBpmVars>
+				<mapping esb="airTicketsBooked" bpm="airTicketsBooked" />
+         	<mapping esb="airTicketsRefunded" bpm="airTicketsRefunded" default="false"/>
+         	<mapping esb="airBookingRefNum" bpm="airBookingRefNum" />
+         	<mapping esb="cancelAirTickets" bpm="cancelAirTickets" />
+			</esbToBpmVars>		
+		</action>		
+		<transition to="join1"></transition>
+	</node>
+	
+	<!-- Payment Service is used to check whether the payment service has succeed or not-->
+	<node name="PaymentService">
+		<action class="org.jboss.soa.esb.services.jbpm.actionhandlers.EsbActionHandler">
+			<esbCategoryName>Travel_Service</esbCategoryName>
+			<esbServiceName>PaymentService</esbServiceName>
+			<bpmToEsbVars>         		
+         	<mapping esb="makePayment" bpm="makePayment" />
+         	<mapping esb="paySucceed" bpm="paySucceed" />
+			</bpmToEsbVars>
+			<esbToBpmVars>
+				<mapping esb="paySucceeded" bpm="paySucceeded" />
+			</esbToBpmVars>
+		</action>
+		<transition to="paymentSuccessful?"></transition>
+	</node>
+	
+	<!-- This fork is used to create the AirService and HotelService ESBs after the requestExtractor. -->
+	<!--  Both the services run in parallel and then join at the join1 -->
+
+	<fork name="fork1">
+		<transition to="AirService" name="to Air Reservation"></transition>
+		<transition to="HotelService" name="to Hotel Reservation"></transition>
+	</fork>
+
+	<!-- This join is used to combine the results from AirService and HotelService after both processes execute in parallel-->
+	<join name="join1">
+		<transition to="ticketsBooked?"></transition>
+	</join>
+	
+	<!-- Decision (ticketsBooked?) created to check if both air and hotel reservations have come through.
+		If both the services have succeeded, then control is sent to the payment service
+		If both services failed, go to the ResultPrinter to print info about failed services
+		Else if only one of the services succeeded, go to result printer and send cancel messages to the service which succeeded
+	 -->
+
+	<decision name="ticketsBooked?">
+		<transition to="PaymentService"><condition>#{airTicketsBooked == "true" and hotelReserved == "true"}</condition></transition>
+		<transition to="fork1"><condition>#{airTicketsBooked == "false" and hotelReserved == "true"}</condition></transition>
+		<transition to="fork1"><condition>#{airTicketsBooked == "true" and hotelReserved == "false"}</condition></transition>
+		<transition to="printResults" name="to printResults"></transition>
+	</decision>
+
+	<!-- Decision(payment Successful?) is used to check if payment was successful
+		If yes, go the ResultPrinter and print success info
+		Else, cancel both the services and print info from Result printer
+	 -->
+	<decision name="paymentSuccessful?">		
+		<transition to="fork1" name="false"><condition>#{paySucceed == "false"}</condition></transition>
+		<transition to="printResults" name="to printResults"></transition>
+	</decision>
+
+	<!-- Service to print the results of the transactions-->
+	<node name="printResults">
+		<action class="org.jboss.soa.esb.services.jbpm.actionhandlers.EsbActionHandler">
+			<esbCategoryName>Travel_Service</esbCategoryName>
+			<esbServiceName>PrintResultsService</esbServiceName>
+			<bpmToEsbVars>
+	         <mapping esb="cancelAirTickets" bpm="cancelAirTickets" />
+	         <mapping bpm="cancelHotelReservation" esb="cancelHotelReservation" />
+	         <mapping bpm="makePayment" esb="makePayment" />
+	         <mapping esb="airTicketsRefunded" bpm="airTicketsRefunded"/>
+	         <mapping bpm="hotelReservationRefunded" esb="hotelReservationRefunded"/>
+	         <mapping bpm="airlines" esb="airlines"/>
+	         <mapping bpm="bookAirTickets" esb="bookAirTickets"/>
+	         <mapping bpm="airBookingSucceed" esb="airBookingSucceed"/>
+	         <mapping bpm="customerName" esb="customerName"/>
+	         <mapping bpm="airBookingRefNum" esb="airBookingRefNum"/>
+	         <mapping bpm="reserveHotel" esb="reserveHotel"/>
+	         <mapping bpm="hotelReservationRef" esb="hotelReservationRef"/>	         
+	         <mapping bpm="airTicketsRefunded" esb="airTicketsRefunded"/>
+	         <mapping bpm="paySucceed" esb="paySucceed"/>
+	         <mapping bpm="makePayment" esb="makePayment"/>
+	         <mapping bpm="hotelReservationSucceed" esb="hotelReservationSucceed"/>
+	         <mapping bpm="airTicketsBooked" esb="airTicketsBooked"/>
+	         <mapping bpm="hotelReserved" esb="hotelReserved"/>
+			</bpmToEsbVars>
+		</action>
+		<transition to="end"></transition>
+	</node>
+	<end-state name="end"></end-state>
+</process-definition>
